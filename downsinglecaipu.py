@@ -310,7 +310,7 @@ def analysize_cooking_step(cooking_step, stepdic, author_nickname, caipu_name):
         # Num: 表示操作步骤编号
         # path: 0,表示没有提供图片; -1, 表示下载出错;
         # url: 0,表示没有提供图片; "url",表示提供的图片下载链接，以供后续分析;
-        stepdic[step_num] = step_discrible_pic
+        stepdic[str(step_num)] = step_discrible_pic
 
 
 def caipu_step_download_pic(step_pic_url, author_nickname, caipu_name):
@@ -547,7 +547,7 @@ def get_caipu_comments(source_url, comment_dic):
                 comment_content = []
                 comment_content.append(per_lists_part[j]["username"])
                 comment_content.append(per_lists_part[j]["createdate"])
-                comment_dic[i*PER_PAGE_NUM + j] = comment_content
+                comment_dic[str(i*PER_PAGE_NUM + j)] = comment_content
 
 
 if __name__ == '__main__':
@@ -662,6 +662,26 @@ if __name__ == '__main__':
             "caipu_video_url": caipu_video_url,
             "caipu_comments": caipu_comment_id
         }, safe=True)
+
+        # dbh.caipuku.insert({
+        #     "a": target_url,
+        #     "b": caipu_name,
+        #     "c": caipu_author_url,
+        #     "d": caipu_pic_path,
+        #     "e": caipu_story,
+        #     "f": caipu_pageview,
+        #     "g": caipu_collection,
+        #     "h": caipu_diffcul,
+        #     "i": caipu_time,
+        #     "j": caipu_zuliao,
+        #     "k": caipu_fuliao,
+        #     "l": caipu_step,
+        #     "m": caipu_tips,
+        #     "n": caipu_video_url,
+        #     "o": caipu_comment_id
+        # }, safe=True)
+
+
 
 
 
