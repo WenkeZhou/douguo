@@ -22,6 +22,9 @@ def connect_to_db():
     dbh = conn["douguotest"]
     return dbh
 
+# 查询是否有该值
+# def whether_exist(collection):
+#     result = dbh.test.find({key:value}).count()
 
 
 

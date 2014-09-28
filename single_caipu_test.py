@@ -17,7 +17,9 @@ import json
 PER_PAGE_NUM = 10
 comment_root_url = "http://www.douguo.com/ajax/getCommentsList/caipu/"
 CAIKU_ROOT_PATH = "/Users/vipwp/liuquan/gitprograms/douguopic/upload/caiku"
-target_url = "http://www.douguo.com/cookbook/178871.html"
+target_url = "http://www.douguo.com/cookbook/1044822.html"
+target_url1 = "http://www.douguo.com/cookbook/178871.html"
+target_url2 = "http://www.douguo.com/cookbook/1044929.html"
 ZFLIAOFLAG = 0
 
 
@@ -526,168 +528,120 @@ def get_caipu_comments(source_url, comment_dic):
                 comment_dic[str(i*PER_PAGE_NUM + j)] = comment_content
 
 
-"""
-/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python /Users/vipwp/liuquan/gitprograms/douguo/downcaipulists.py
-该菜谱对应的链接没有入库
-http://www.douguo.com/cookbook/1044948.html
-'NoneType' object has no attribute 'find'
-该菜谱对应的链接没有入库
-http://www.douguo.com/cookbook/1044947.html
-没有对应的描述图片
-没有对应的描述图片
-没有对应的描述图片
-没有对应的描述图片
-'NoneType' object has no attribute 'find'
-该菜谱对应的链接没有入库
-http://www.douguo.com/cookbook/1044946.html
-该菜谱对应的链接没有入库
-http://www.douguo.com/cookbook/1044945.html
-'NoneType' object has no attribute 'find'
-该菜谱对应的链接没有入库
-http://www.douguo.com/cookbook/1044944.html
-'NoneType' object has no attribute 'find'
-"""
-
-# if __name__ == '__main__':
-
-def download_per_caipu(per_caipu_url):
+if __name__ == '__main__':
     # 返回数据库链接
+    target_url_kk = target_url2
     dbh = mongodbtest.connect_to_db()
-    if dbh.caipuku.find({"caipu_url": per_caipu_url[0]}).count() != 0:
+    if dbh.caipuku.find({"caipu_url": target_url_kk}).count() != 0:
         print "该菜谱对应的链接已经入库"
     else:
         print "该菜谱对应的链接没有入库"
-        print per_caipu_url[0]
-        return_code, content = download_links(per_caipu_url[0])
+        return_code, content = download_links(target_url_kk)
         if return_code not in [200, 206]:
-            print "Can't not get back %s" % per_caipu_url[0]
+            print "Can't not get back %s" % target_url_kk
         else:
-            try:
-                soup = BeautifulSoup(content.read())
-                #开始分析soup,并将结果保存到数据库对应的菜谱表中
+            soup = BeautifulSoup(content.read())
+            #开始分析soup,并将结果保存到数据库对应的菜谱表中
 
-                # herotag 获取菜谱名称
-                caipu_name = get_caipu_name(soup)
+            # herotag 获取菜谱名称
+            caipu_name = get_caipu_name(soup)
 
-                # herotag 获取作者nickname，url
-                caipu_author_nickname, caipu_author_url = get_caipu_author(soup)
+            # herotag 获取作者nickname，url
+            caipu_author_nickname, caipu_author_url = get_caipu_author(soup)
 
-                # herotag 获取成品照片, 下载并返回所在路径
-                caipu_pic_path = get_caipu_pic(soup, caipu_author_nickname, caipu_name)
+            # herotag 获取成品照片, 下载并返回所在路径
+            caipu_pic_path = get_caipu_pic(soup, caipu_author_nickname, caipu_name)
 
-                # herotag 获取菜谱story
-                caipu_story = get_caipu_story(soup)
+            # herotag 获取菜谱story
+            caipu_story = get_caipu_story(soup)
 
-                # herotag 获取菜谱浏览量(caipu_pageview) 和 收藏量(caipu_collection)
-                watch_collect_part = soup.find("div", class_="falisc mbm")
-                watch_collect_span = watch_collect_part.findAll("span", class_="fwb")
-                caipu_pageview = watch_collect_span[0].getText().strip()
-                caipu_collection = watch_collect_span[1].getText().strip()
-
-
-                #烹饪部分，该部分的table分离出来，对应的css属性为 class_="retew r3 pb25 mb20"
-                #再逐个进行分解
-                cooking = soup.find("div", class_="retew r3 pb25 mb20")
-                cooking_part = cooking.find("table", class_="retamr")
-
-                # herotag 获取菜谱烹饪难度
-                caipu_diffcul, caipu_time = get_caipu_diffcul_time(cooking_part)
-
-                # herotag 获取菜谱主料,副料
-                caipu_zuliao = {}
-                caipu_fuliao = {}
-                get_caipu_zuliao(cooking_part, caipu_zuliao, caipu_fuliao)
-
-                # for zukey in caipu_zuliao.iterkeys():
-                #     print zukey + ":",
-                #     print caupu_zuliao[zukey]
-                #
-                # print "-----"
-                # for fukey in caipu_fuliao.iterkeys():
-                #     print fukey + ":",
-                #     print caipu_fuliao[fukey]
-
-                # herotag 获取菜谱描述步骤，以及对应图片
-                # 烹饪步骤
-                cooking_step = cooking.find("div", class_="step clearfix")
-                cooking_step_list = cooking_step.findAll("div", class_="stepcont mll libdm pvl clearfix")
-                caipu_step = {}
-                analysize_cooking_step(cooking_step_list, caipu_step, caipu_author_nickname, caipu_name)
-
-                # herotag 小贴士
-                caipu_tips = get_caipu_tips(cooking)
-
-                # herotag 标签
-                caipu_tags = []
-                get_caipu_tags(soup, caipu_tags)
-
-                # herotag 创建时间
-                caipu_created_time = per_caipu_url[2]
-
-                # herotag 在线烹饪视屏链接
-                caipu_video_url = get_caipu_video_url(soup)
-
-                # herotag 评论
-                caipu_comment_id = {}
-                get_caipu_comments(target_url, caipu_comment_id)
+            # herotag 获取菜谱浏览量(caipu_pageview) 和 收藏量(caipu_collection)
+            watch_collect_part = soup.find("div", class_="falisc mbm")
+            watch_collect_span = watch_collect_part.findAll("span", class_="fwb")
+            caipu_pageview = watch_collect_span[0].getText().strip()
+            caipu_collection = watch_collect_span[1].getText().strip()
 
 
-                # print type(target_url)
-                # print type(caipu_name)
-                # print type(caipu_author_url)
-                # print type(caipu_pic_path)
-                # print type(caipu_story)
-                # print type(caipu_pageview)
-                # print type(caipu_collection)
-                # print type(caipu_diffcul)
-                # print type(caipu_time)
-                # print type(caipu_zuliao)
-                # print type(caipu_fuliao)
-                # print type(caipu_step)
-                # print type(caipu_tips)
-                # print type(caipu_video_url)
-                # print type(caipu_comment_id)
+            #烹饪部分，该部分的table分离出来，对应的css属性为 class_="retew r3 pb25 mb20"
+            #再逐个进行分解
+            cooking = soup.find("div", class_="retew r3 pb25 mb20")
+            cooking_part = cooking.find("table", class_="retamr")
 
-                #将获取的数据插入数据库dbh中
-                dbh.caipuku.insert({
-                    "caipu_url": per_caipu_url[0],
-                    "caipu_name": caipu_name,
-                    "caipu_author_url": caipu_author_url,
-                    "caipu_pic_path": caipu_pic_path,
-                    "caipu_story": caipu_story,
-                    "caipu_pageview": caipu_pageview,
-                    "caipu_collection": caipu_collection,
-                    "caipu_diffcul": caipu_diffcul,
-                    "caipu_time": caipu_time,
-                    "caipu_zuliao": caipu_zuliao,
-                    "caipu_fuliao": caipu_fuliao,
-                    "caipu_step": caipu_step,
-                    "caipu_tips": caipu_tips,
-                    "caipu_created_time": caipu_created_time,
-                    "caipu_video_url": caipu_video_url,
-                    "caipu_comments": caipu_comment_id
-                }, safe=True)
-            except Exception as ex:
-                print "Big erro!"
-                print per_caipu_url[0]
+            # herotag 获取菜谱烹饪难度
+            caipu_diffcul, caipu_time = get_caipu_diffcul_time(cooking_part)
 
-                dbh.error_download_caipu_url.insert({
-                    "caipu_url": per_caipu_url[0],
-                }, safe=True)
+            # herotag 获取菜谱主料,副料
+            caipu_zuliao = {}
+            caipu_fuliao = {}
+            get_caipu_zuliao(cooking_part, caipu_zuliao, caipu_fuliao)
 
+            # for zukey in caipu_zuliao.iterkeys():
+            #     print zukey + ":",
+            #     print caupu_zuliao[zukey]
+            #
+            # print "-----"
+            # for fukey in caipu_fuliao.iterkeys():
+            #     print fukey + ":",
+            #     print caipu_fuliao[fukey]
 
+            # herotag 获取菜谱描述步骤，以及对应图片
+            # 烹饪步骤
+            cooking_step = cooking.find("div", class_="step clearfix")
+            cooking_step_list = cooking_step.findAll("div", class_="stepcont mll libdm pvl clearfix")
+            caipu_step = {}
+            analysize_cooking_step(cooking_step_list, caipu_step, caipu_author_nickname, caipu_name)
 
+            # herotag 小贴士
+            caipu_tips = get_caipu_tips(cooking)
 
+            # herotag 标签
+            caipu_tags = []
+            get_caipu_tags(soup, caipu_tags)
 
+            # # herotag 创建时间
+            caipu_created_time = -1
+
+            # herotag 在线烹饪视屏链接
+            caipu_video_url = get_caipu_video_url(soup)
+
+            # herotag 评论
+            caipu_comment_id = {}
+            get_caipu_comments(target_url, caipu_comment_id)
 
 
+            # print type(target_url)
+            # print type(caipu_name)
+            # print type(caipu_author_url)
+            # print type(caipu_pic_path)
+            # print type(caipu_story)
+            # print type(caipu_pageview)
+            # print type(caipu_collection)
+            # print type(caipu_diffcul)
+            # print type(caipu_time)
+            # print type(caipu_zuliao)
+            # print type(caipu_fuliao)
+            # print type(caipu_step)
+            # print type(caipu_tips)
+            # print type(caipu_video_url)
+            # print type(caipu_comment_id)
 
-
-
-
-
-
-
-
-
+            #将获取的数据插入数据库dbh中
+            dbh.caipuku.insert({
+                "caipu_url": target_url_kk,
+                "caipu_name": caipu_name,
+                "caipu_author_url": caipu_author_url,
+                "caipu_pic_path": caipu_pic_path,
+                "caipu_story": caipu_story,
+                "caipu_pageview": caipu_pageview,
+                "caipu_collection": caipu_collection,
+                "caipu_diffcul": caipu_diffcul,
+                "caipu_time": caipu_time,
+                "caipu_zuliao": caipu_zuliao,
+                "caipu_fuliao": caipu_fuliao,
+                "caipu_step": caipu_step,
+                "caipu_tips": caipu_tips,
+                "caipu_created_time": caipu_created_time,
+                "caipu_video_url": caipu_video_url,
+                "caipu_comments": caipu_comment_id
+            }, safe=True)
 
