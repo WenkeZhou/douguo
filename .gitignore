@@ -1,0 +1,10 @@
+# Python:
+*.py[cod]
+*.so
+*.egg
+*.egg-info
+
+#Windows:
+Thumbs.db
+ehthumbs.db
+Desktop.ini
