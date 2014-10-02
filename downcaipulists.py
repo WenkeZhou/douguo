@@ -5,6 +5,10 @@ from bs4 import BeautifulSoup
 import urllib2
 import re
 from downsinglecaipu import download_per_caipu
+from dbpart import mongodbtest
+
+import socket
+socket.setdefaulttimeout(8)
 
 target_url = "http://www.douguo.com/caipu/zuixin/30"
 proxy_ip = "183.221.217.162"
@@ -19,8 +23,25 @@ def download_zx_per_page(target_url):
     opener.addheaders.append(
         ('User-Agent', proxy_header)
     )
-    content = opener.open(target_url)
-    return content.getcode(), content
+
+    content = ''
+    try:
+        content = opener.open(target_url)
+    except urllib2.URLError, e:
+        print "222该 ip 链接有误!--->urllib2.URLError"
+    except socket.error, e:
+        print "222该 ip 链接超时!--->socket.error"
+    finally:
+        if content == "":
+            print "222该 ip 链接有误!222"
+            return -1, -1
+        elif content.getcode() in range(200, 207):
+            return content.getcode(), content
+        else:
+            print "222该 ip 链接有误!"
+            return -1, -1
+    # content = opener.open(target_url)
+    # return content.getcode(), content
 
 
 def get_perpage_caipu_list(content, perpage_caipu_list):
@@ -76,19 +97,36 @@ def get_perpage_caipu_list(content, perpage_caipu_list):
             perpage_caipu_list.append(itemlist)
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def down_per_page(target_url):
+    # 下载该页的所有内容
     return_code, content = download_zx_per_page(target_url)
     perpage_caipu_list = []
     error_page_url = []
-    if return_code in [200, 206]:
+    if return_code in range(200, 206):
         get_perpage_caipu_list(content, perpage_caipu_list)
         if len(perpage_caipu_list) is 0:
             print "url或者解析有误"
-            error_page_url.append(error_page_url)
+            error_page_url.append(target_url)
         else:
             for per_caipu_url in perpage_caipu_list:
                 download_per_caipu(per_caipu_url)
     else:
         print "下载有误！"
+
+    if len(error_page_url) > 0:
+        error_page_url_set = set(error_page_url)
+        dbh = mongodbtest.connect_to_db()
+        dbh_collection_error_page_url = dbh.bad_page_url
+        for item_url in error_page_url_set:
+            if mongodbtest.whether_exist(dbh_collection_error_page_url, error_page_url=item_url):
+                pass
+            else:
+                # dbh_collection_error_page_url.insert({
+                #     "error_page_url": error_page_url
+                # })
+                mongodbtest.insert_bad_url(dbh_collection_error_page_url, bad_page_url=item_url)
+        print "有 %d条页面没有成功获取，获取有误。" % len(error_page_url_set)
+
 
 

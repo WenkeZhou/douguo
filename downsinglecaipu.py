@@ -13,10 +13,15 @@ import urllib2
 from dbpart import mongodbtest
 import json
 
+import socket
+
+socket.setdefaulttimeout(8)
+
 
 PER_PAGE_NUM = 10
 comment_root_url = "http://www.douguo.com/ajax/getCommentsList/caipu/"
-CAIKU_ROOT_PATH = "/Users/vipwp/liuquan/gitprograms/douguopic/upload/caiku"
+CAIKU_ROOT_PATH1 = "/Users/vipwp/liuquan/gitprograms/douguopic/upload/caiku"
+CAIKU_ROOT_PATH = "smb://192.168.11.148/herofile/"
 target_url = "http://www.douguo.com/cookbook/178871.html"
 ZFLIAOFLAG = 0
 
@@ -38,8 +43,25 @@ def download_links(target_url):
     opener.addheaders.append(
         ('User-Agent', proxy_header)
     )
-    content = opener.open(target_url)
-    return content.getcode(), content
+    content = ''
+    try:
+        content = opener.open(target_url)
+    except urllib2.URLError, e:
+        print "该 ip 链接有误!--->urllib2.URLError"
+    except socket.error, e:
+        print "该 ip 链接超时!--->socket.error"
+    finally:
+        if content == "":
+            print "该 ip 链接有误!222"
+            return -1, -1
+        elif content.getcode() in range(200, 207):
+            return content.getcode(), content
+        else:
+            print "该 ip 链接有误!"
+            return -1, -1
+
+    # content = opener.open(target_url)
+    # return content.getcode(), content
 
 
 def get_caipu_name(soup):
@@ -260,7 +282,7 @@ def analysize_cooking_step(cooking_step_list, stepdic, author_nickname, caipu_na
         step_pic = single_step.find("a", class_="cboxElement")
         if step_pic is None:
             # 没有对应的描述图片，则改部分图片的 path 为0, url 为 0.
-            print "没有对应的描述图片"
+            # print "没有对应的描述图片"
             step_discrible_pic.append(0)
             step_discrible_pic.append(0)
         else:
@@ -354,7 +376,6 @@ def get_caipu_tips(cooking):
         try:
             xtieshi = xtieshi_content.find("p").getText().strip()
         except Exception as ex:
-            print ex
             xtieshi = -1
             pass
     return xtieshi
@@ -466,7 +487,24 @@ def get_content(target_url, ajax_url):
      "http://www.douguo.com/cookbook/814268.html/ajax/getCommentsList/caipu/814268/10?0.5948076252825558 HTTP/1.1"
     """
     req = urllib2.Request(ajax_url, headers=my_headers)
-    return urllib2.urlopen(req).read()
+
+    content = ''
+    try:
+        content = urllib2.urlopen(req)
+    except urllib2.URLError, e:
+        print "该 ip 链接有误!--->urllib2.URLError"
+    except socket.error, e:
+        print "该 ip 链接超时!--->socket.error"
+    finally:
+        if content == "":
+            print "该 ip 链接有误!222"
+            return -1
+        elif content.getcode() in range(200, 207):
+            return content.read()
+        else:
+            print "该 ip 链接有误!"
+            return -1
+    # return urllib2.urlopen(req).read()
 
 
 def get_page_num(total_num, per_page_num):
@@ -490,7 +528,7 @@ def get_page_num(total_num, per_page_num):
         return pagenum
 
 
-def get_caipu_comments(source_url, comment_dic):
+def get_caipu_comments(source_url, comment_dic, dbh):
     """
     获取菜谱对应的评论
     :param source_url:
@@ -506,24 +544,29 @@ def get_caipu_comments(source_url, comment_dic):
     ajax_url = get_comment_url(0, caipu_source_id)
     content = get_content(target_url, ajax_url)
 
-    json_part = json.loads(content)
-    data_part = json_part['data']
-    lists_part = data_part['lists']
-    total_num = data_part['total']
-    total_page_num = 0
-    total_page_num = get_page_num(total_num, PER_PAGE_NUM)
-    if total_num == 0:
-        pass
+    if content != -1:
+        json_part = json.loads(content)
+        data_part = json_part['data']
+        lists_part = data_part['lists']
+        total_num = data_part['total']
+        total_page_num = 0
+        total_page_num = get_page_num(total_num, PER_PAGE_NUM)
+        if total_num == 0:
+            pass
+        else:
+            for i in range(total_page_num):
+                per_ajax_url = get_comment_url(i, caipu_source_id)
+                per_content = get_content(target_url, per_ajax_url)
+
+                if per_content != -1:
+                    per_lists_part = json.loads(per_content)['data']['lists']
+                    for j in range(len(per_lists_part)):
+                        comment_content = []
+                        comment_content.append(per_lists_part[j]["username"])
+                        comment_content.append(per_lists_part[j]["createdate"])
+                        comment_dic[str(i*PER_PAGE_NUM + j)] = comment_content
     else:
-        for i in range(total_page_num):
-            per_ajax_url = get_comment_url(i, caipu_source_id)
-            per_content = get_content(target_url, per_ajax_url)
-            per_lists_part = json.loads(per_content)['data']['lists']
-            for j in range(len(per_lists_part)):
-                comment_content = []
-                comment_content.append(per_lists_part[j]["username"])
-                comment_content.append(per_lists_part[j]["createdate"])
-                comment_dic[str(i*PER_PAGE_NUM + j)] = comment_content
+        mongodbtest.insert_bad_url(dbh.bad_comment_url, bad_comment_url=source_url)
 
 
 """
@@ -550,17 +593,25 @@ http://www.douguo.com/cookbook/1044944.html
 
 # if __name__ == '__main__':
 
+
 def download_per_caipu(per_caipu_url):
     # 返回数据库链接
     dbh = mongodbtest.connect_to_db()
-    if dbh.caipuku.find({"caipu_url": per_caipu_url[0]}).count() != 0:
+    # if dbh.caipuku.find({"caipu_url": per_caipu_url[0]}).count() != 0:
+    dbh_coll_caipuku = dbh.caipuku
+    if mongodbtest.whether_exist(dbh_coll_caipuku, caipu_url=per_caipu_url[0]):
         print "该菜谱对应的链接已经入库"
+
     else:
         print "该菜谱对应的链接没有入库"
         print per_caipu_url[0]
         return_code, content = download_links(per_caipu_url[0])
-        if return_code not in [200, 206]:
+        if return_code not in range(200, 206):
             print "Can't not get back %s" % per_caipu_url[0]
+            mongodbtest.insert_bad_url(dbh.error_download_caipu_url, caipu_url=per_caipu_url[0])
+            # dbh.error_download_caipu_url.insert({
+            #     "caipu_url": per_caipu_url[0],
+            # }, safe=True)
         else:
             try:
                 soup = BeautifulSoup(content.read())
@@ -629,7 +680,7 @@ def download_per_caipu(per_caipu_url):
 
                 # herotag 评论
                 caipu_comment_id = {}
-                get_caipu_comments(target_url, caipu_comment_id)
+                get_caipu_comments(target_url, caipu_comment_id, dbh)
 
 
                 # print type(target_url)
@@ -670,10 +721,10 @@ def download_per_caipu(per_caipu_url):
             except Exception as ex:
                 print "Big erro!"
                 print per_caipu_url[0]
-
-                dbh.error_download_caipu_url.insert({
-                    "caipu_url": per_caipu_url[0],
-                }, safe=True)
+                mongodbtest.insert_bad_url(dbh.error_download_caipu_url, caipu_url=per_caipu_url[0])
+                # dbh.error_download_caipu_url.insert({
+                #     "caipu_url": per_caipu_url[0],
+                # }, safe=True)
 
 
 
