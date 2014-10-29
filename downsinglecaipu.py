@@ -545,6 +545,7 @@ def get_caipu_comments(source_url, comment_dic, dbh):
     content = get_content(target_url, ajax_url)
 
     if content != -1:
+    if content != -1:
         json_part = json.loads(content)
         data_part = json_part['data']
         lists_part = data_part['lists']
@@ -606,7 +607,7 @@ def download_per_caipu(per_caipu_url):
         print "该菜谱对应的链接没有入库"
         print per_caipu_url[0]
         return_code, content = download_links(per_caipu_url[0])
-        if return_code not in range(200, 206):
+        if return_code not in range(200, 207):
             print "Can't not get back %s" % per_caipu_url[0]
             mongodbtest.insert_bad_url(dbh.error_download_caipu_url, caipu_url=per_caipu_url[0])
             # dbh.error_download_caipu_url.insert({

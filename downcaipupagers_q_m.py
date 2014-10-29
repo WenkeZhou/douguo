@@ -45,7 +45,7 @@ def create_processes(concurrency, jobs, results):
 def main():
     COUNT = 100
     concurrency = 80
-    PAGE_COUNT = 30
+    PAGE_COUNT = 300
     jobs = multiprocessing.JoinableQueue()
     results = multiprocessing.Queue()
     create_processes(concurrency, jobs, results)
