@@ -6,6 +6,10 @@ import urllib2
 import re
 from downsinglecaipu import download_per_caipu
 from dbpart import mongodbtest
+from http_proxy_list import user_agent_list
+from the_generate_ip_list import ip_list
+import random
+
 
 import socket
 socket.setdefaulttimeout(8)
@@ -17,29 +21,62 @@ http_type = "HTTPS"
 
 
 def download_zx_per_page(target_url):
-    proxy = {http_type: proxy_ip}
-    proxy_surpport = urllib2.ProxyHandler(proxy)
-    opener = urllib2.build_opener(proxy_surpport)
-    opener.addheaders.append(
-        ('User-Agent', proxy_header)
-    )
+    # user_agent = random.choice(user_agent_list)
+    # item = random.choice(ip_list)
+    # # {'ip_adr': u'183.221.56.185', 'type': u'HTTPS', 'port': u'8123', 'check_time': 0.06206116676330566},
+    # ip = item['ip_adr']
+    # ip_type = item['type']
+    # port = item["port"]
+    # proxy = {ip_type: "%s:%s" % (ip, port)}
+    #
+    #
+    # # proxy = {http_type: proxy_ip}
+    # proxy_surpport = urllib2.ProxyHandler(proxy)
+    # opener = urllib2.build_opener(proxy_surpport)
+    # opener.addheaders.append(
+    #     ('User-Agent', user_agent)
+    # )
 
     content = ''
-    try:
-        content = opener.open(target_url)
-    except urllib2.URLError, e:
-        print "222该 ip 链接有误!--->urllib2.URLError"
-    except socket.error, e:
-        print "222该 ip 链接超时!--->socket.error"
-    finally:
-        if content == "":
-            print "222该 ip 链接有误!222"
-            return -1, -1
-        elif content.getcode() in range(200, 207):
-            return content.getcode(), content
-        else:
-            print "222该 ip 链接有误!"
-            return -1, -1
+    for tries in range(5):
+        try:
+            user_agent = random.choice(user_agent_list)
+            item = random.choice(ip_list)
+            # {'ip_adr': u'183.221.56.185', 'type': u'HTTPS', 'port': u'8123', 'check_time': 0.06206116676330566},
+            ip = item['ip_adr']
+            ip_type = item['type']
+            port = item["port"]
+            proxy = {ip_type: "%s:%s" % (ip, port)}
+
+
+            # proxy = {http_type: proxy_ip}
+            proxy_surpport = urllib2.ProxyHandler(proxy)
+            opener = urllib2.build_opener(proxy_surpport)
+            opener.addheaders.append(
+                ('User-Agent', user_agent)
+            )
+
+            content = opener.open(target_url)
+            break
+        except urllib2.URLError, e:
+            if tries < 4:
+                continue
+            else:
+                print "download_zx_per_page ip 链接有误!--->urllib2.URLError"
+        except socket.error, e:
+            if tries < 4:
+                continue
+            else:
+                print "download_zx_per_page ip 链接超时!--->socket.error"
+
+    if content == "":
+        print "download_zx_per_page ip 链接有误!"
+        return -1, -1
+    elif content.getcode() in range(200, 207):
+        return content.getcode(), content
+    else:
+        print "download_zx_per_page ip 链接有误!"
+        return -1, -1
     # content = opener.open(target_url)
     # return content.getcode(), content
 
@@ -106,13 +143,13 @@ def down_per_page(target_url):
     if return_code in range(200, 206):
         get_perpage_caipu_list(content, perpage_caipu_list)
         if len(perpage_caipu_list) is 0:
-            print "url或者解析有误"
+            print "down_per_page url或者解析有误"
             error_page_url.append(target_url)
         else:
             for per_caipu_url in perpage_caipu_list:
                 download_per_caipu(per_caipu_url)
     else:
-        print "下载有误！"
+        print "down_per_page 下载有误！"
 
     if len(error_page_url) > 0:
         error_page_url_set = set(error_page_url)

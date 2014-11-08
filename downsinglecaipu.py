@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 import urllib2
 from dbpart import mongodbtest
 import json
+from http_proxy_list import user_agent_list
+from the_generate_ip_list import ip_list
 
 import socket
 
@@ -37,28 +39,46 @@ def download_links(target_url):
     :param target_url: 所要下载的链接
     :return: return_code: 打开target_url 的状态码; content: target_url 对应的网页包
     """
-    proxy = {http_type: proxy_ip}
+    user_agent = random.choice(user_agent_list)
+    item = random.choice(ip_list)
+    # {'ip_adr': u'183.221.56.185', 'type': u'HTTPS', 'port': u'8123', 'check_time': 0.06206116676330566},
+    ip = item['ip_adr']
+    ip_type = item['type']
+    port = item["port"]
+    proxy = {ip_type: "%s:%s" % (ip, port)}
+
+    # proxy = {http_type: proxy_ip}
     proxy_support = urllib2.ProxyHandler(proxy)
     opener = urllib2.build_opener(proxy_support)
     opener.addheaders.append(
-        ('User-Agent', proxy_header)
+        ('User-Agent', user_agent)
     )
+
     content = ''
-    try:
-        content = opener.open(target_url)
-    except urllib2.URLError, e:
-        print "该 ip 链接有误!--->urllib2.URLError"
-    except socket.error, e:
-        print "该 ip 链接超时!--->socket.error"
-    finally:
-        if content == "":
-            print "该 ip 链接有误!222"
-            return -1, -1
-        elif content.getcode() in range(200, 207):
-            return content.getcode(), content
-        else:
-            print "该 ip 链接有误!"
-            return -1, -1
+    for tries in range(5):
+        try:
+            content = opener.open(target_url)
+            break
+        except urllib2.URLError, e:
+            if tries < 4:
+                continue
+            else:
+                print "该download_links ip 链接有误!--->urllib2.URLError"
+
+        except socket.error, e:
+            if tries < 4:
+                continue
+            else:
+                print "该download_links ip 链接超时!--->socket.error"
+
+    if content == "":
+        print "该download_links ip 链接有误!222"
+        return -1, -1
+    elif content.getcode() in range(200, 207):
+        return content.getcode(), content
+    else:
+        print "该download_links ip 链接有误!"
+        return -1, -1
 
     # content = opener.open(target_url)
     # return content.getcode(), content
@@ -132,7 +152,9 @@ def get_caipu_pic(soup, author_nickname, caipu_name):
         i += 1
     #下载该图片
     try:
-        urllib.urlretrieve(caipu_pic_url, caipu_root_path_salt+pic_suffix)
+        # urllib.urlretrieve(caipu_pic_url, caipu_root_path_salt+pic_suffix)
+        # print "下载图片"
+        pass
     except Exception as ex:
         print ex
         #下载图片失败，则返回1，并将下载的图片删除掉，因为下载的图片很有可能打不开，无用
@@ -347,7 +369,7 @@ def caipu_step_download_pic(step_pic_url, author_nickname, caipu_name):
         i += 1
     #下载该图片
     try:
-        urllib.urlretrieve(step_pic_url, caipu_root_path_salt+pic_suffix)
+        # urllib.urlretrieve(step_pic_url, caipu_root_path_salt+pic_suffix)
         return_result = 1
     except Exception as ex:
         print ex
@@ -465,6 +487,7 @@ def get_comment_url(page_num, caipu_source_id):
 
 
 def get_content(target_url, ajax_url):
+    user_agent = random.choice(user_agent_list)
     """
     模仿浏览器返回，返回当前页对应的ajax的信息
     :param target_url: 当前页对应的url
@@ -476,7 +499,7 @@ def get_content(target_url, ajax_url):
     http://www.douguo.com/ajax/getCommentsList/caipu/814268/0?0.6172902997118468 HTTP/1.1
     """
     my_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.114 Safari/537.36',
+            'User-Agent': user_agent,
             "Host": 'www.douguo.com',
             "Referer": target_url,
             "X-Requested-With": "XMLHttpRequest",
@@ -492,17 +515,17 @@ def get_content(target_url, ajax_url):
     try:
         content = urllib2.urlopen(req)
     except urllib2.URLError, e:
-        print "该 ip 链接有误!--->urllib2.URLError"
+        print "该ajax ip 链接有误!--->urllib2.URLError"
     except socket.error, e:
-        print "该 ip 链接超时!--->socket.error"
+        print "该ajax  ip 链接超时!--->socket.error"
     finally:
         if content == "":
-            print "该 ip 链接有误!222"
+            print "该ajax ip 链接有误!222"
             return -1
         elif content.getcode() in range(200, 207):
             return content.read()
         else:
-            print "该 ip 链接有误!"
+            print "该ajax ip 链接有误!"
             return -1
     # return urllib2.urlopen(req).read()
 
@@ -544,7 +567,6 @@ def get_caipu_comments(source_url, comment_dic, dbh):
     ajax_url = get_comment_url(0, caipu_source_id)
     content = get_content(target_url, ajax_url)
 
-    if content != -1:
     if content != -1:
         json_part = json.loads(content)
         data_part = json_part['data']
@@ -602,7 +624,6 @@ def download_per_caipu(per_caipu_url):
     dbh_coll_caipuku = dbh.caipuku
     if mongodbtest.whether_exist(dbh_coll_caipuku, caipu_url=per_caipu_url[0]):
         print "该菜谱对应的链接已经入库"
-
     else:
         print "该菜谱对应的链接没有入库"
         print per_caipu_url[0]
@@ -726,20 +747,3 @@ def download_per_caipu(per_caipu_url):
                 # dbh.error_download_caipu_url.insert({
                 #     "caipu_url": per_caipu_url[0],
                 # }, safe=True)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
