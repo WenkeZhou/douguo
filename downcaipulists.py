@@ -9,6 +9,7 @@ from dbpart import mongodbtest
 from http_proxy_list import user_agent_list
 from the_generate_ip_list import ip_list
 import random
+from proxy_part.ip_http_proxy import random_ip_header_open
 
 
 import socket
@@ -21,21 +22,6 @@ http_type = "HTTPS"
 
 
 def download_zx_per_page(target_url):
-    # user_agent = random.choice(user_agent_list)
-    # item = random.choice(ip_list)
-    # # {'ip_adr': u'183.221.56.185', 'type': u'HTTPS', 'port': u'8123', 'check_time': 0.06206116676330566},
-    # ip = item['ip_adr']
-    # ip_type = item['type']
-    # port = item["port"]
-    # proxy = {ip_type: "%s:%s" % (ip, port)}
-    #
-    #
-    # # proxy = {http_type: proxy_ip}
-    # proxy_surpport = urllib2.ProxyHandler(proxy)
-    # opener = urllib2.build_opener(proxy_surpport)
-    # opener.addheaders.append(
-    #     ('User-Agent', user_agent)
-    # )
 
     content = ''
     for tries in range(5):
@@ -59,6 +45,12 @@ def download_zx_per_page(target_url):
             content = opener.open(target_url)
             break
         except urllib2.URLError, e:
+            if hasattr(e, 'reason'):
+                print 'We failed to reach a server.'
+                print 'Reason: ', e.reason
+            elif hasattr(e, 'code'):
+                print 'The server couldn\'t fulfill the request.'
+                print 'Error code: ', e.code
             if tries < 4:
                 continue
             else:
@@ -137,7 +129,7 @@ def get_perpage_caipu_list(content, perpage_caipu_list):
 # if __name__ == '__main__':
 def down_per_page(target_url):
     # 下载该页的所有内容
-    return_code, content = download_zx_per_page(target_url)
+    return_code, content = random_ip_header_open(target_url)
     perpage_caipu_list = []
     error_page_url = []
     if return_code in range(200, 206):

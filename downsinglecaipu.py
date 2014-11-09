@@ -15,6 +15,7 @@ import json
 from http_proxy_list import user_agent_list
 from the_generate_ip_list import ip_list
 
+from proxy_part.ip_http_proxy import random_ip_header_open
 import socket
 
 socket.setdefaulttimeout(8)
@@ -565,9 +566,15 @@ def get_caipu_comments(source_url, comment_dic, dbh):
     """
     caipu_source_id = get_caipu_id(source_url)
     ajax_url = get_comment_url(0, caipu_source_id)
-    content = get_content(target_url, ajax_url)
+    my_headers = {
+            "Host": 'www.douguo.com',
+            "Referer": target_url,
+            "X-Requested-With": "XMLHttpRequest",
+            "Content-Type": "application/json; charset=utf-8"
+    }
+    content = get_content(ajax_url)
 
-    if content != -1:
+    if content not in (-1, -2, -3):
         json_part = json.loads(content)
         data_part = json_part['data']
         lists_part = data_part['lists']
@@ -627,7 +634,7 @@ def download_per_caipu(per_caipu_url):
     else:
         print "该菜谱对应的链接没有入库"
         print per_caipu_url[0]
-        return_code, content = download_links(per_caipu_url[0])
+        return_code, content = random_ip_header_open(per_caipu_url[0])
         if return_code not in range(200, 207):
             print "Can't not get back %s" % per_caipu_url[0]
             mongodbtest.insert_bad_url(dbh.error_download_caipu_url, caipu_url=per_caipu_url[0])
